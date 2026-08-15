@@ -7,6 +7,7 @@ Dash.router = {
     rede: 'Rede',
     processos: 'Processos',
     alertas: 'Alertas',
+    anotacoes: 'Anotações',
     analise: 'Análise',
     historico: 'Histórico',
     ajuda: 'Ajuda',

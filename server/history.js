@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import path from 'node:path';
 
 export class HistoryStore {
@@ -6,6 +7,8 @@ export class HistoryStore {
     this.limit = limit;
     this.file = file;
     this.samples = [];
+    this._pending = null;
+    this._lastSave = Promise.resolve();
     this.load();
   }
 
@@ -35,15 +38,32 @@ export class HistoryStore {
     this.save();
   }
 
-  save() {
+  async _atomicWrite(data) {
     try {
-      fs.mkdirSync(path.dirname(this.file), { recursive: true });
+      await fsp.mkdir(path.dirname(this.file), { recursive: true, mode: 0o700 });
       const tmp = `${this.file}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(this.samples));
-      fs.renameSync(tmp, this.file);
+      await fsp.writeFile(tmp, data, { mode: 0o600 });
+      await fsp.rename(tmp, this.file);
     } catch (err) {
       console.error(`[history] falha ao gravar ${this.file}: ${err.message}`);
     }
+  }
+
+  save() {
+    this._pending = JSON.stringify(this.samples);
+    const run = async () => {
+      while (this._pending !== null) {
+        const data = this._pending;
+        this._pending = null;
+        await this._atomicWrite(data);
+      }
+    };
+    this._lastSave = this._lastSave.then(run, run);
+    return this._lastSave;
+  }
+
+  async flush() {
+    await this._lastSave;
   }
 
   getLatest() {

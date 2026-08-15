@@ -1,31 +1,61 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
   <title>Linux Server Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233b82f6'/%3E%3Cpath d='M9 16h4l2-5 4 10 2-5h2' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <span class="dot" id="statusDot"></span>
+        <span class="dot" id="statusDot" role="status" aria-label="Status do servidor"></span>
         <div class="brand-text">
           <h1>Dashboard</h1>
           <span class="subtitle" id="osLabel">—</span>
         </div>
       </div>
 
-      <nav class="nav">
-        <a href="#/" data-view="overview" class="nav-item active">Visão Geral</a>
-        <a href="#/discos" data-view="discos" class="nav-item">Discos</a>
-        <a href="#/rede" data-view="rede" class="nav-item">Rede</a>
-        <a href="#/processos" data-view="processos" class="nav-item">Processos</a>
-        <a href="#/alertas" data-view="alertas" class="nav-item">Alertas <span class="nav-badge" id="alertBadge" hidden></span></a>
-        <a href="#/analise" data-view="analise" class="nav-item">Análise</a>
-        <a href="#/historico" data-view="historico" class="nav-item">Histórico</a>
-        <a href="#/ajuda" data-view="ajuda" class="nav-item">Ajuda</a>
+      <nav class="nav" aria-label="Navegação principal">
+        <a href="#/" data-view="overview" class="nav-item active" aria-current="page">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>
+          <span>Visão Geral</span>
+        </a>
+        <a href="#/discos" data-view="discos" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></svg>
+          <span>Discos</span>
+        </a>
+        <a href="#/rede" data-view="rede" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Rede</span>
+        </a>
+        <a href="#/processos" data-view="processos" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/></svg>
+          <span>Processos</span>
+        </a>
+        <a href="#/alertas" data-view="alertas" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span>Alertas</span> <span class="nav-badge" id="alertBadge" hidden></span>
+        </a>
+        <a href="#/anotacoes" data-view="anotacoes" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12l-6 4H4z"/><path d="M14 16v4l4-4"/></svg>
+          <span>Anotações</span>
+        </a>
+        <a href="#/analise" data-view="analise" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+          <span>Análise</span>
+        </a>
+        <a href="#/historico" data-view="historico" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Histórico</span>
+        </a>
+        <a href="#/ajuda" data-view="ajuda" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Ajuda</span>
+        </a>
       </nav>
 
       <div class="sidebar-footer">
@@ -36,7 +66,10 @@
             <div class="health-note" id="healthNote">calculando…</div>
           </div>
         </div>
-        <button id="pollBtn" title="Coletar agora">Coletar agora</button>
+        <button id="pollBtn" title="Coletar agora">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Coletar agora
+        </button>
       </div>
     </aside>
 
@@ -55,17 +88,24 @@
             <span class="label">Próxima em</span>
             <span id="countdown">—</span>
           </div>
-          <div class="period-toggle" id="periodToggle">
+          <div class="period-toggle" id="periodToggle" role="group" aria-label="Período dos gráficos">
             <button data-period="1h">1h</button>
             <button data-period="6h">6h</button>
             <button data-period="24h" class="active">24h</button>
             <button data-period="72h">72h</button>
           </div>
-          <button id="exportBtn" class="btn-ghost" title="Exportar CSV do período atual">Exportar</button>
+          <button id="exportBtn" class="btn-ghost" title="Exportar CSV do período atual">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar
+          </button>
+          <button id="themeToggle" class="btn-icon" title="Alternar tema (claro/escuro)" aria-label="Alternar tema">
+            <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </button>
         </div>
       </header>
 
-      <div id="alerts" class="alerts-bar"></div>
+      <div id="alerts" class="alerts-bar" aria-live="polite"></div>
 
       <main id="content">
         <section id="view-overview" class="view active">
@@ -157,7 +197,7 @@
           <div class="panel wide">
             <h2>Top processos <span class="hint">clique no cabeçalho para ordenar</span></h2>
             <div class="toolbar">
-              <input type="search" id="procSearch" placeholder="Buscar por comando ou usuário…">
+              <input type="search" id="procSearch" placeholder="Buscar por comando ou usuário…" aria-label="Buscar processos">
             </div>
             <table id="procsTable">
               <thead><tr>
@@ -175,13 +215,24 @@
         <section id="view-alertas" class="view">
           <div class="panel wide">
             <h2>Alertas</h2>
-            <div class="toolbar" id="alertFilters">
+            <div class="toolbar" id="alertFilters" role="group" aria-label="Filtro de alertas">
               <button data-filter="active" class="active">Ativos</button>
               <button data-filter="all">Todos</button>
               <button data-filter="warning">Warning</button>
               <button data-filter="critical">Critical</button>
             </div>
             <div id="alertsList"></div>
+          </div>
+        </section>
+
+        <section id="view-anotacoes" class="view">
+          <div class="panel wide">
+            <h2>Anotações <span class="hint">marcadores na linha do tempo dos gráficos</span></h2>
+            <div class="annotation-form">
+              <input type="text" id="annotationText" placeholder="Nova anotação (marcada no momento atual)…" maxlength="500" aria-label="Texto da nova anotação">
+              <button id="annotationAdd" class="btn-ghost">Adicionar agora</button>
+            </div>
+            <div id="annotationsList" class="annotations-list"></div>
           </div>
         </section>
 
@@ -253,6 +304,7 @@
                   <li><b>Rede</b> — download/upload (Mbps) e I/O por disco (MB/s, abas sda/sdb/sdc).</li>
                   <li><b>Processos</b> — top 7 por memória. Busque no campo e clique nos cabeçalhos para ordenar.</li>
                   <li><b>Alertas</b> — lista com filtros; reconheça (✓) ou resolva cada alerta.</li>
+                  <li><b>Anotações</b> — marque momentos na linha do tempo e remova anotações.</li>
                   <li><b>Análise</b> — índice de saúde detalhado, pressão de RAM, ETA dos discos, resumo diário, outages.</li>
                   <li><b>Histórico</b> — cada coleta em tabela, no período selecionado.</li>
                 </ul>
@@ -271,6 +323,7 @@
                     <tr><td>Voltar o zoom</td><td>trocar o período ou recarregar a página</td></tr>
                     <tr><td>Detalhe de uma coleta</td><td>clicar em um ponto do gráfico</td></tr>
                     <tr><td>Anotar no tempo</td><td>na janela de detalhe, "Anotar neste momento" (linha roxa no gráfico)</td></tr>
+                    <tr><td>Tema claro/escuro</td><td>botão sol/lua no topo</td></tr>
                     <tr><td>Coletar agora</td><td>botão no rodapé da coluna esquerda</td></tr>
                     <tr><td>Exportar CSV</td><td>botão "Exportar" no topo (abre no Excel)</td></tr>
                   </tbody>
@@ -321,11 +374,11 @@
     </div>
   </div>
 
-  <div id="modal" class="modal" hidden>
+  <div id="modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-box">
       <div class="modal-head">
         <h3 id="modalTitle">Amostra</h3>
-        <button class="btn-ghost" id="modalClose">✕</button>
+        <button class="btn-ghost" id="modalClose" aria-label="Fechar">✕</button>
       </div>
       <div class="modal-body" id="sampleModalBody"></div>
       <div class="modal-foot">

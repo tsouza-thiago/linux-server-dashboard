@@ -13,7 +13,7 @@ o painel que mostra em tempo real o que está acontecendo com o seu servidor Lin
 
 1. [O que é este programa?](#1-o-que-é-este-programa)
 2. [Antes de começar (pré-requisitos)](#2-antes-de-começar-pré-requisitos)
-3. [Instalação](#3-instalação)
+3. [Instalação (assistente automático)](#3-instalação-assistente-automático)
 4. [Iniciar o serviço](#4-iniciar-o-serviço)
 5. [Parar o serviço](#5-parar-o-serviço)
 6. [Como usar o dashboard](#6-como-usar-o-dashboard)
@@ -34,7 +34,7 @@ a cada 60 segundos, como está o seu servidor:
 - espaço livre em cada **disco** e previsão de quando podem encher;
 - **tráfego de rede** (download/upload);
 - **I/O dos discos** (leitura/escrita);
-- **serviços SMB** (smbd/nmbd) ativos ou parados;
+- **serviços** (smbd/nmbd ou outros) ativos ou parados;
 - **saúde dos discos** (SMART);
 - os **processos** que mais consomem memória;
 - **alertas** quando algo está errado (disco quase cheio, temperatura alta, servidor fora do ar).
@@ -60,8 +60,10 @@ de uso de CPU, RAM, temperatura, discos e alertas ativos:
 Só são necessários 3 itens, e normalmente já estão prontos neste computador:
 
 1. **Node.js versão 18 ou mais nova** — é o "motor" do programa.
-2. **Chave SSH configurada** — é o "crachá" que permite falar com o servidor sem senha.
-3. **O servidor ligado e na rede** (ex.: `ping 192.0.2.10`).
+2. **O servidor ligado e na rede** (ex.: `ping 192.0.2.10`).
+3. **O endereço do servidor** no formato `usuario@IP` (ex.: `root@192.168.100.75`).
+
+> Não se preocupe com chave SSH: o instalador cria e configura tudo sozinho na seção 3.
 
 ### Como verificar (copie e cole no terminal)
 
@@ -70,25 +72,16 @@ node --version
 ```
 
 Deve aparecer algo como `v18.x` ou `v20.x`, `v22.x`, etc. Se aparecer "command not found",
-instale o Node.js antes de continuar.
+instale o Node.js antes de continuar:
 
-```bash
-ssh seu-host 'echo ok'
-```
+- Baixe em https://nodejs.org (instalador do sistema), **ou**
+- Use o gerenciador nvm: https://github.com/nvm-sh/nvm
 
-Deve responder `ok` **sem pedir senha**. Se pedir senha ou der erro, veja a seção
-[9. Solução de problemas](#9-solução-de-problemas) ("Chave SSH").
-
-```bash
-ping -c 3 192.0.2.10
-```
-
-Deve responder com tempos de resposta. Se der "100% packet loss", o servidor está desligado
-ou fora da rede — ligue-o antes de continuar.
+Depois rode o `./install.sh` de novo.
 
 ---
 
-## 3. Instalação
+## 3. Instalação (assistente automático)
 
 A instalação é uma única vez. Depois disso, é só iniciar/parar quando quiser.
 
@@ -101,36 +94,49 @@ cd ~/projeto/linux-server-dashboard
 > Dica: este é o "endereço" do programa. Toda vez que precisar iniciar ou parar,
 > comece por este comando.
 
-### Passo 2 — Baixar as dependências
+### Passo 2 — Rodar o instalador (faz TUDO)
 
 ```bash
-npm install
+./install.sh
 ```
 
-Vai aparecer uma barra de progresso por alguns segundos. Quando terminar, o programa
-está instalado. (Se já aparecer "up to date", significa que já estava instalado — tudo bem.)
+O instalador vai:
 
-### Passo 3 — Arquivo de configuração (opcional)
+1. Conferir o Node.js e baixar as dependências (barra de progresso por alguns segundos);
+2. Criar o arquivo de configuração `.env` e **gerar um token de acesso** (`DASH_TOKEN`)
+   para proteger o painel;
+3. **Testar a conexão SSH** com o servidor;
+4. Se ainda não estiver configurada, abre o **assistente SSH** (interativo). Ele pergunta
+   primeiro se você já tem um **alias SSH** configurado:
 
-O programa já funciona com valores padrão. Se quiser mudar a porta, o intervalo de coleta,
-etc., crie o arquivo `.env`:
+   ```
+   Já tem um alias SSH configurado em ~/.ssh/config? [s/N]
+   ```
 
-```bash
-cp .env.example .env
-```
+   - Se você já usa um alias (ex.: `meu-servidor` do `~/.ssh/config`), digite `s` e o nome
+     do alias — pronto, ele usa o que já existe.
+   - Caso contrário, aperte Enter e digite o servidor:
 
-Depois é só editar com qualquer editor de texto. Valores e significados:
+     ```
+     Endereço do servidor (ex.: root@192.168.100.75, ou só o IP/host):
+     ```
 
-| Variável | Padrão | O que faz |
-|----------|--------|-----------|
-| `SSH_HOST` | `seu-host` | Alias SSH do servidor |
-| `POLL_INTERVAL` | `60000` | Intervalo entre coletas (ms). `60000` = 1 minuto |
-| `PORT` | `3000` | Porta do painel no seu computador |
-| `HISTORY_LIMIT` | `4320` | Quantas amostras guardar (4320 = 3 dias) |
-| `HISTORY_FILE` | `data/history.json` | Arquivo com o histórico |
-| `LOG_FILE` | `data/dashboard.log` | Arquivo de registro de eventos |
+     Você pode digitar `root@192.168.100.75` **ou** só `192.168.100.75` (aí ele pergunta
+     o usuário, padrão `root`). Depois informa a **porta SSH** (padrão 22).
 
-### Passo 4 — Teste rápido (opcional, mas recomendado)
+   Ele mostra o **plano** (servidor, chave e alias que serão criados) e pede confirmação.
+   Confirmando, gera a chave de acesso, **pede a senha do servidor uma única vez** (só
+   para copiar a chave — a senha **não** fica salva em lugar nenhum) e cria o apelido.
+
+   > Entrada inválida não quebra a instalação: ele pede de novo (Ctrl+C cancela).
+
+5. No final, mostra o resumo (com o seu token de acesso) e um **menu de próximos passos**:
+   iniciar em segundo plano, instalar como serviço (roda sempre), ver o tutorial ou sair.
+
+> **Se der erro na cópia da chave**, anote o comando que ele mostrar e rode a seção 9
+> ("Chave SSH quebrada").
+
+### Passo 3 — Teste rápido (opcional, mas recomendado)
 
 Para confirmar que o programa consegue falar com o servidor **sem abrir o navegador**:
 
@@ -145,8 +151,6 @@ Se aparecer um JSON com `"ok": true`, está tudo pronto.
 
 ## 4. Iniciar o serviço
 
-Há duas formas: pelo script fácil ou pelo comando direto.
-
 ### Forma fácil (recomendada)
 
 ```bash
@@ -154,11 +158,39 @@ cd ~/projeto/linux-server-dashboard
 ./start.sh
 ```
 
-### Forma direta
+### Em segundo plano (libera o terminal)
 
 ```bash
-cd ~/projeto/linux-server-dashboard
-npm start
+./start.sh --background
+```
+
+O painel continua rodando mesmo depois de fechar o terminal. Para parar, use o `./stop.sh`.
+
+### Saber se está rodando em segundo plano
+
+```bash
+./start.sh --status
+```
+
+Mostra o PID e a porta, ou avisa que não está rodando.
+
+### Rodar sempre (inicia sozinho no login)
+
+```bash
+./install.sh --install-service
+```
+
+Para o serviço continuar ativo mesmo sem abrir sessão gráfica:
+
+```bash
+loginctl enable-linger $USER
+```
+
+Gerir o serviço:
+
+```bash
+systemctl --user status  linux-server-dashboard
+systemctl --user restart linux-server-dashboard
 ```
 
 ### O que deve acontecer
@@ -176,23 +208,15 @@ Abra seu navegador (Firefox, Chrome...) e digite na barra de endereço:
 http://localhost:3000
 ```
 
-Pronto, o painel está aberto. **Deixe o terminal aberto** — enquanto ele estiver
-rodando, o painel funciona. Fechar a janela do navegador **não** para o serviço;
-fechar o terminal sim.
+Pronto, o painel está aberto. **Deixe o terminal aberto** (no modo normal) — enquanto ele
+estiver rodando, o painel funciona. Fechar a janela do navegador **não** para o serviço;
+fechar o terminal sim (no modo `--background` ou systemd, nem isso é problema).
+
+> Na **primeira vez**, o painel pode pedir o seu **token de acesso** (o que o instalador
+> mostrou no final). Digite uma vez e ele fica guardado na sessão do navegador.
 
 > O painel só é acessível neste computador (127.0.0.1). Ninguém mais na rede
 > consegue abrir — isso é proposital e seguro.
-
-### Rodando em segundo plano (sem prender o terminal)
-
-Se quiser que o painel continue rodando mesmo depois de fechar o terminal:
-
-```bash
-cd ~/projeto/linux-server-dashboard
-nohup npm start > data/nohup.log 2>&1 &
-```
-
-Para pará-lo depois, use o `./stop.sh` (seção 5) normalmente.
 
 ### Como saber se está rodando
 
@@ -203,7 +227,6 @@ curl http://127.0.0.1:3000/api/status
 ```
 
 Deve devolver um texto começando com `{"meta":{...` contendo `"online":true`.
-Se responder `true`, está rodando e o servidor está acessível.
 
 ---
 
@@ -219,13 +242,19 @@ cd ~/projeto/linux-server-dashboard
 O script encontra o processo, encerra com gentileza (SIGTERM) e confirma:
 
 ```
-Parando Linux Server Dashboard (PID 12345)... encerrando...
-Serviço parado.
+Parando Linux Server Dashboard (PID 12345)...
+Serviço parado. O histórico foi preservado (data/history.json).
 ```
 
 ### Se você iniciou no terminal (Ctrl+C)
 
-No terminal onde o `npm start` está rodando, pressione `Ctrl+C`.
+No terminal onde o `./start.sh` está rodando, pressione `Ctrl+C`.
+
+### Se instalou como serviço systemd
+
+```bash
+systemctl --user stop linux-server-dashboard
+```
 
 ### Manualmente (se nenhum dos acima funcionar)
 
@@ -247,7 +276,7 @@ kill 12345
 
 ## 6. Como usar o dashboard
 
-O painel tem 8 telas, listadas na coluna esquerda. Clique em cada item para trocar de tela.
+O painel tem 9 telas, listadas na coluna esquerda. Clique em cada item para trocar de tela.
 
 ### 🏠 Visão Geral (primeira tela)
 
@@ -263,7 +292,7 @@ O painel tem 8 telas, listadas na coluna esquerda. Clique em cada item para troc
 
 Abaixo, 4 gráficos: load, RAM, temperatura e uso dos discos.
 E ainda: lista de discos (clique em um para ver detalhes), rede (download/upload) e
-serviços SMB (smbd/nmbd) com selo verde (ativo) ou vermelho (parado).
+serviços com selo verde (ativo) ou vermelho (parado).
 
 ### 💾 Discos
 
@@ -278,8 +307,8 @@ serviços SMB (smbd/nmbd) com selo verde (ativo) ou vermelho (parado).
 
 - Download e upload em **Mbps** (megabits por segundo) — leitura/escrita em tempo real.
 - Gráfico de tráfego de rede ao longo do tempo.
-- Gráfico de **I/O por disco** (MB/s de leitura/escrita). Clique nas abas
-  `sda` / `sdb` / `sdc` para alternar o disco.
+- Gráfico de **I/O por disco** (MB/s de leitura/escrita). As abas são criadas
+  automaticamente a partir dos discos monitorados (`DISK_DEVS`).
 
 ### ⚙️ Processos
 
@@ -296,6 +325,14 @@ serviços SMB (smbd/nmbd) com selo verde (ativo) ou vermelho (parado).
   - **Resolver**: o alerta deixou de existir (auto-resolve) ou você o encerrou manualmente.
 - Os alertas ativos também aparecem como barras coloridas no topo de todas as telas
   (amarelo = warning, vermelho = critical) com botão ✓ para reconhecer.
+
+### 📝 Anotações
+
+- Linha do tempo de eventos que você mesmo marca (ex.: "troquei o cooler", "desliguei
+  para limpeza").
+- **Criar**: use o formulário no topo da tela, ou clique num ponto de um gráfico e
+  escolha **"Anotar neste momento"**.
+- **Remover**: clique em "Remover" na anotação (a linha do gráfico some junto).
 
 ### 📊 Análise
 
@@ -321,6 +358,7 @@ serviços SMB (smbd/nmbd) com selo verde (ativo) ou vermelho (parado).
 | Ação | Como fazer | Para quê |
 |------|-----------|----------|
 | **Mudar período** | Botões `1h` / `6h` / `24h` / `72h` no topo | Ver gráficos de hoje, ou dos últimos 3 dias |
+| **Alternar tema** | Botão (lua/sol) no topo da tela | Trocar entre tema escuro e claro (fica salvo) |
 | **Zoom no gráfico** | Roda do mouse sobre o gráfico | Ampliar um intervalo para ver detalhes |
 | **Mover (pan)** | `Shift` + arrastar com o mouse | Navegar dentro do zoom |
 | **Voltar o zoom** | Trocar o período (1h/6h/...) ou atualizar a página | Restaurar a visão normal |
@@ -358,7 +396,7 @@ serviços SMB (smbd/nmbd) com selo verde (ativo) ou vermelho (parado).
 - **Temperatura ≥ 60 °C** — cuidado com o calor; verifique ventilação/poeira.
 - **Disco ≥ 90%** — risco de encher; libere espaço (principalmente em `/`).
 - **SMART ≠ PASSED** — disco pode estar morrendo; faça backup urgente.
-- **smbd/nmbd parados** — os compartilhamentos SMB/CIFS (pastas na rede) pararam.
+- **Serviço monitorado parado** — algo que deveria estar no ar caiu.
 
 ---
 
@@ -370,7 +408,7 @@ serviços SMB (smbd/nmbd) com selo verde (ativo) ou vermelho (parado).
 | `RAM usada em NN%` | warning | Verificar processos pesados na tela **Processos**. Fechar aplicações, ou reduzir carga. |
 | `Temperatura CPU NN°C` | warning | Verificar ventilação do gabinete, poeira nos coolers, posição do computador. |
 | `SMART /dev/sdX: ...` | critical | **Backup imediato** dos dados do disco. Pode ser falha física. |
-| `Serviço smbd/nmbd ...` | critical | Reiniciar os serviços no servidor: `ssh seu-host 'sudo systemctl restart smbd nmbd'`. |
+| `Serviço X ...` | critical | Reiniciar o serviço no servidor (ex.: `ssh seu-host 'sudo systemctl restart smbd'`). |
 | `Servidor inacessível: ...` | critical | Servidor desligado ou fora da rede. Verificar energia, cabo de rede: `ping 192.0.2.10`. O painel continua tentando a cada minuto e se recupera sozinho. |
 
 **Regra de ouro:** warning = preste atenção, critical = aja.
@@ -381,9 +419,11 @@ serviços SMB (smbd/nmbd) com selo verde (ativo) ou vermelho (parado).
 
 ### O painel não abre no navegador
 
-- Confirme que o serviço está rodando (o terminal está com `npm start` ativo?).
+- Confirme que o serviço está rodando (o terminal está com `./start.sh` ativo?).
 - Confira a porta: se você mudou `PORT` no `.env`, use a nova porta na URL.
 - Teste com `curl http://127.0.0.1:3000/api/status` (seção 4).
+- Se aparecer **"Host não permitido (403)"**: abra por `http://localhost:3000`
+  (outros endereços são bloqueados de propósito).
 
 ### "Servidor inacessível" (dot vermelho, banner de alerta)
 
@@ -397,10 +437,16 @@ serviços SMB (smbd/nmbd) com selo verde (ativo) ou vermelho (parado).
 ssh seu-host 'echo ok'
 ```
 
-- Se pedir senha: a chave `~/.ssh/sua_chave` não está sendo usada.
-  Confira se ela existe (`ls -la ~/.ssh/`) e se o `~/.ssh/config` tem o bloco do seu servidor.
-- Se der "Permission denied": a chave pública não está mais no servidor —
-  é preciso re-autorizá-la (veja como gerar e copiar uma chave SSH para o servidor).
+- Se pedir senha: a chave não está sendo usada. O jeito mais simples é refazer o assistente:
+  ```bash
+  ./install.sh --configure
+  ```
+- Se der "Permission denied": a chave pública não está no servidor. Reautorize:
+  ```bash
+  ssh-copy-id -i ~/.ssh/dashboard_ed25519.pub seu-host
+  ```
+- Se pedir "yes/no" sobre a chave do servidor: é a primeira conexão. Digite `yes`
+  (o instalador também aceita automaticamente com segurança).
 
 ### Gráficos vazios ("sem amostras")
 
@@ -420,10 +466,11 @@ lsof -i :3000
 ### Onde ver o que aconteceu (logs)
 
 ```bash
-tail -f data/dashboard.log
+tail -f data/dashboard.log    # modo normal / systemd
+tail -f data/nohup.log        # modo --background
 ```
 
-Cada coleta registra uma linha: `poll OK (123ms) — amostras: 45` ou `poll FALHOU: timeout`.
+Cada coleta registra uma linha: `poll OK (123ms) — amostras: 45` ou `poll FALHOU: ...`.
 
 ### Testar a coleta isolada (sem o painel)
 
@@ -441,7 +488,7 @@ o problema é SSH/rede — os logs dirão o motivo.
 1. **Nunca instale nada no servidor** — o monitoramento é 100% leitura. O servidor
    tem hardware muito limitado (1 núcleo, pouca RAM); qualquer instalação pode travá-lo.
 2. **Respeite o intervalo de 60s** — não mude `POLL_INTERVAL` para valores muito baixos
-   (ex.: 5000ms). O servidor responde 1 comando por minuto, por projeto.
+   (o programa já bloqueia abaixo de 10 segundos). O servidor responde 1 comando por minuto, por projeto.
 3. **Discos SMR** — evite cópias massivas e aleatórias de arquivos no
    servidor; são lentos para reescrever.
 4. **Anote os eventos** — quando fizer manutenção no servidor, clique num ponto do
@@ -454,6 +501,8 @@ o problema é SSH/rede — os logs dirão o motivo.
    amostras e todo o histórico de alertas e anotações.
 8. **Backup do histórico (opcional)** — se quiser guardar além de 3 dias, exporte CSV
    periodicamente ou copie `data/history.json` para outro lugar.
+9. **Segurança na prática** — não torne o painel acessível fora do seu computador.
+   O endereço local `127.0.0.1` é de propósito. Se precisar acessar de longe, use VPN.
 
 ---
 

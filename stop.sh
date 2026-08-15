@@ -14,10 +14,23 @@ cd "$(dirname "$0")"
 PORT=$(grep -E '^PORT=' .env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
 PORT=${PORT:-3000}
 
-# 1. Encontrar o processo do painel (node server/index.js)
-PID=$(pgrep -f "node server/index.js" | head -1)
+PID=""
 
-# 2. Fallback: quem está escutando na porta do painel?
+# 1. PID file (usado pelo ./start.sh --background)
+if [ -f data/dashboard.pid ]; then
+  PID=$(cat data/dashboard.pid 2>/dev/null | tr -d ' ')
+  rm -f data/dashboard.pid
+  if [ -n "$PID" ] && ! kill -0 "$PID" 2>/dev/null; then
+    PID=""
+  fi
+fi
+
+# 2. Encontrar o processo do painel (node server/index.js)
+if [ -z "$PID" ]; then
+  PID=$(pgrep -f "node server/index.js" | head -1)
+fi
+
+# 3. Fallback: quem está escutando na porta do painel?
 if [ -z "$PID" ] && command -v lsof >/dev/null 2>&1; then
   PID=$(lsof -t -i ":$PORT" 2>/dev/null | head -1)
 fi

@@ -1,33 +1,22 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { config, isPlaceholderHost, sanitizeToken } from './config.js';
 
 const SSH_OPTS = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10'];
 
-function loadFileEnv() {
-  const out = {};
-  try {
-    const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-    for (const line of fs.readFileSync(path.join(root, '.env'), 'utf8').split('\n')) {
-      const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*)\s*$/);
-      if (m && !line.trim().startsWith('#')) out[m[1]] = m[2].replace(/^["']|["']$/g, '');
-    }
-  } catch { /* .env opcional */ }
-  return out;
-}
+export const NET_IF = config.NET_IF;
+export const DISK_MOUNTS = config.DISK_MOUNTS;
+export const DISK_DEVS = config.DISK_DEVS;
+export const SERVICES = config.SERVICES;
+export const DEV_SET = new Set(DISK_DEVS);
+export const SVC_ORDER = SERVICES;
 
-const fileEnv = loadFileEnv();
-const env = (key, def) => process.env[key] ?? fileEnv[key] ?? def;
-
-const NET_IF = env('NET_IF', '').trim();
-const DISK_MOUNTS = env('DISK_MOUNTS', '/').split(/\s+/).filter(Boolean);
-const DISK_DEVS = env('DISK_DEVS', '').split(/\s+/).filter(Boolean);
-const SERVICES = env('SERVICES', '').split(/\s+/).filter(Boolean);
-const DEV_SET = new Set(DISK_DEVS);
-const SVC_ORDER = SERVICES;
-
-export function buildCommand() {
+export function buildCommand(overrides = {}) {
+  const netIfRaw = overrides.netIf ?? NET_IF;
+  const netIf = netIfRaw ? sanitizeToken(String(netIfRaw))[0] || '' : '';
+  const mounts = overrides.diskMounts ?? DISK_MOUNTS;
+  const devs = overrides.diskDevs ?? DISK_DEVS;
+  const svcs = overrides.services ?? SERVICES;
   const parts = [
     "echo '===HOST==='; hostname",
     "echo '===OS==='; uname -r; head -2 /etc/os-release 2>/dev/null",
@@ -35,26 +24,29 @@ export function buildCommand() {
     "echo '===UPTIME==='; cat /proc/uptime",
     "echo '===LOAD==='; cat /proc/loadavg",
     "echo '===FREE==='; LC_ALL=C free -m",
-    `echo '===DF==='; LC_ALL=C df -h --output=target,size,used,avail,pcent ${DISK_MOUNTS.join(' ')} 2>/dev/null`,
-    `echo '===DFB==='; LC_ALL=C df -B1 --output=target,size,used,avail,pcent ${DISK_MOUNTS.join(' ')} 2>/dev/null`,
+    `echo '===DF==='; LC_ALL=C df -h --output=target,size,used,avail,pcent ${mounts.join(' ')} 2>/dev/null`,
+    `echo '===DFB==='; LC_ALL=C df -B1 --output=target,size,used,avail,pcent ${mounts.join(' ')} 2>/dev/null`,
   ];
-  if (NET_IF) parts.push(`echo '===NET==='; cat /proc/net/dev | grep ${NET_IF}`);
-  if (DISK_DEVS.length) {
-    const awkCond = DISK_DEVS.map((d) => `$3=="${d}"`).join('||');
-    const loop = DISK_DEVS.map((d) => `printf '%s:' "${d}"; smartctl -H /dev/${d} 2>/dev/null | grep -oE 'PASSED|FAILED' | head -1`).join('; ');
+  if (netIf) parts.push(`echo '===NET==='; cat /proc/net/dev | grep ${netIf}`);
+  if (devs.length) {
+    const awkCond = devs.map((d) => `$3=="${d}"`).join('||');
+    const loop = devs.map((d) => `printf '%s:' "${d}"; smartctl -H /dev/${d} 2>/dev/null | grep -oE 'PASSED|FAILED' | head -1`).join('; ');
     parts.push(`echo '===IO==='; cat /proc/diskstats | awk '${awkCond}'`);
     parts.push(`echo '===SMART==='; ${loop}`);
   }
   parts.push(
     "echo '===TEMP==='; cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null",
   );
-  if (SERVICES.length) parts.push(`echo '===SERVICES==='; LC_ALL=C systemctl is-active ${SERVICES.join(' ')}`);
+  if (svcs.length) parts.push(`echo '===SERVICES==='; LC_ALL=C systemctl is-active ${svcs.join(' ')}`);
   parts.push("echo '===PS==='; LC_ALL=C ps aux --sort=-%mem | head -8");
   return parts.join('; ');
 }
 
 function runSSH(host, timeoutMs = 45000) {
   return new Promise((resolve) => {
+    if (!host || host.startsWith('-')) {
+      return resolve({ stdout: '', stderr: '', code: 255, timedOut: false, error: 'host inválido' });
+    }
     const child = spawn('ssh', [...SSH_OPTS, host, buildCommand()], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -78,7 +70,7 @@ function runSSH(host, timeoutMs = 45000) {
   });
 }
 
-function parseOutput(stdout, ts) {
+export function parseOutput(stdout, ts) {
   const sample = {
     ts,
     host: '',
@@ -230,7 +222,7 @@ function parseOutput(stdout, ts) {
   return sample;
 }
 
-function computeNetRates(sample, prev) {
+export function computeNetRates(sample, prev) {
   if (!prev || !prev.net) return;
   const deltaSec = (Date.parse(sample.ts) - Date.parse(prev.ts)) / 1000;
   if (deltaSec <= 0) return;
@@ -240,7 +232,7 @@ function computeNetRates(sample, prev) {
   sample.net.txMbps = +(tx * 8 / deltaSec / 1e6).toFixed(2);
 }
 
-function computeIoRates(sample, prev) {
+export function computeIoRates(sample, prev) {
   if (!prev || !prev.io || !prev.io.length) return;
   const deltaSec = (Date.parse(sample.ts) - Date.parse(prev.ts)) / 1000;
   if (deltaSec <= 0) return;
@@ -252,6 +244,17 @@ function computeIoRates(sample, prev) {
     cur.readMBps = +r.toFixed(2);
     cur.writeMBps = +w.toFixed(2);
   }
+}
+
+export function describeError({ code, error, stderr, timedOut }) {
+  if (timedOut) return 'timeout — servidor não respondeu (rede/servidor fora do ar?)';
+  if (error) return error;
+  if (stderr && /Host key verification/i.test(stderr)) {
+    return 'chave do servidor não autorizada — rode ./install.sh para autorizar';
+  }
+  if (code === 255) return 'SSH falhou (exit 255) — host não encontrado ou chave inválida';
+  if (code !== null) return `SSH falhou (exit ${code})`;
+  return 'sem resposta';
 }
 
 export function computeAlerts(sample) {
@@ -287,12 +290,11 @@ export function computeAlerts(sample) {
   return alerts;
 }
 
-export async function collect({ host, prev }) {
+export async function collect({ host, prev, runner = runSSH }) {
   const ts = new Date().toISOString();
-  const { stdout, code, timedOut, error } = await runSSH(host);
+  const { stdout, stderr, code, timedOut, error } = await runner(host);
   if (code !== 0 || !stdout || !stdout.includes('===HOST===')) {
-    const detail = timedOut ? 'timeout'
-      : error || (code !== null ? `exit ${code}` : 'sem saída');
+    const detail = describeError({ code, error, stderr, timedOut });
     return { ok: false, error: detail, ts };
   }
   const sample = parseOutput(stdout, ts);
@@ -304,7 +306,11 @@ export async function collect({ host, prev }) {
 
 const isCLI = process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop());
 if (isCLI) {
-  const host = env('SSH_HOST', 'seu-host');
+  const host = config.SSH_HOST;
+  if (isPlaceholderHost(host)) {
+    console.error('ERRO: SSH_HOST não configurado. Rode ./install.sh ou edite o .env.');
+    process.exit(1);
+  }
   const res = await collect({ host, prev: null });
   console.log(JSON.stringify(res, null, 2));
   process.exit(res.ok ? 0 : 1);

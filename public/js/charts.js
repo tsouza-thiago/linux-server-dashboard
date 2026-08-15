@@ -8,6 +8,24 @@ Dash.charts = {
 
   COLORS: ['#3b82f6', '#f5a524', '#22c55e', '#e5484d', '#a855f7', '#06b6d4'],
 
+  textColor() {
+    try {
+      return document.documentElement.dataset.theme === 'light' ? '#64748b' : '#9ca3af';
+    } catch { return '#9ca3af'; }
+  },
+
+  faintColor() {
+    try {
+      return document.documentElement.dataset.theme === 'light' ? '#94a3b8' : '#6b7280';
+    } catch { return '#6b7280'; }
+  },
+
+  gridColor() {
+    try {
+      return document.documentElement.dataset.theme === 'light' ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.05)';
+    } catch { return 'rgba(255,255,255,0.05)'; }
+  },
+
   labels(samples) {
     return samples.map((s) => new Date(s.ts).toLocaleTimeString('pt-BR', { hour12: false }));
   },
@@ -137,7 +155,7 @@ Dash.charts = {
         animation: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { labels: { color: '#9ca3af', boxWidth: 12, boxHeight: 12 } },
+          legend: { labels: { color: this.textColor(), boxWidth: 12, boxHeight: 12 } },
           zoom: {
             pan: { enabled: true, mode: 'x', modifierKey: 'shift' },
             zoom: { wheel: { enabled: true, speed: 0.05 }, pinch: { enabled: true }, mode: 'x' },
@@ -146,12 +164,12 @@ Dash.charts = {
         },
         scales: {
           x: {
-            ticks: { color: '#6b7280', maxTicksLimit: 8, maxRotation: 0 },
-            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: this.faintColor(), maxTicksLimit: 8, maxRotation: 0 },
+            grid: { color: this.gridColor() },
           },
           y: {
-            ticks: { color: '#6b7280' },
-            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: this.faintColor() },
+            grid: { color: this.gridColor() },
             beginAtZero: true,
           },
         },

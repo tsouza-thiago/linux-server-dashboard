@@ -6,7 +6,8 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "poll": "node server/poller.js --once"
+    "poll": "node server/poller.js --once",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"

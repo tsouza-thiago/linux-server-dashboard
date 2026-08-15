@@ -39,17 +39,19 @@ hardware muito limitado (1 núcleo, pouca RAM) — por exemplo, uma máquina vel
 4. [Por que é eficiente](#por-que-é-eficiente)
 5. [Funcionalidades do dashboard](#funcionalidades-do-dashboard)
 6. [Pré-requisitos](#pré-requisitos)
-7. [Instalação](#instalação)
+7. [Instalação (fácil)](#instalação-fácil)
 8. [Configuração](#configuração)
 9. [Como usar](#como-usar)
-10. [Exemplo real do autor](#exemplo-real-do-autor)
-11. [API](#api)
-12. [Alertas](#alertas)
-13. [Segurança](#segurança)
-14. [Estrutura do projeto](#estrutura-do-projeto)
-15. [Solução de problemas](#solução-de-problemas)
-16. [FAQ](#faq)
-17. [Licença](#licença)
+10. [Rodar sempre em segundo plano (systemd)](#rodar-sempre-em-segundo-plano-systemd)
+11. [Exemplo real do autor](#exemplo-real-do-autor)
+12. [API](#api)
+13. [Alertas](#alertas)
+14. [Segurança](#segurança)
+15. [Testes](#testes)
+16. [Estrutura do projeto](#estrutura-do-projeto)
+17. [Solução de problemas](#solução-de-problemas)
+18. [FAQ](#faq)
+19. [Licença](#licença)
 
 ---
 
@@ -86,7 +88,7 @@ acontece por SSH, com chave criptográfica, e apenas **uma vez por minuto**.
 | **SMART** | Autodiagnóstico de saúde dos discos | `PASSED` = saudável; diferente = risco de falha física (faça backup!) |
 | **Rede** | Download/upload em **Mbps** | Tráfego em tempo real, detecta picos e vazamentos |
 | **I/O dos discos** | Leitura/escrita em **MB/s** por disco | Identifica discos sobrecarregados |
-| **Serviços SMB** | smbd/nmbd ativos ou parados | Se caírem, os compartilhamentos de rede param |
+| **Serviços** | smbd/nmbd (ou outros) ativos ou parados | Se caírem, os compartilhamentos de rede param |
 | **Top processos** | Os que mais consomem memória | Acha o "vilão" quando a RAM sobe |
 | **Uptime / boot** | Tempo ligado e hora do último boot | Contexto para interpretar as demais métricas |
 
@@ -99,7 +101,7 @@ acontece por SSH, com chave criptográfica, e apenas **uma vez por minuto**.
       ↑
 [poller.js]  coleta → parse → taxas de rede/I/O → alertas → amostra JSON
       ↑
-[history.js]  histórico em memória (2h p/ UI) + persistência atômica em data/history.json
+[history.js]  histórico em memória (períodos de até 72h na UI) + persistência atômica em data/history.json
       ↑
 [index.js]  Express (127.0.0.1:3000) → dashboard + API REST + SSE (tempo real)
       ↑
@@ -147,15 +149,16 @@ O ciclo é simples e proposital:
 
 ## Funcionalidades do dashboard
 
-O painel tem **8 telas**, navegáveis pela coluna da esquerda:
+O painel tem **9 telas**, navegáveis pela coluna da esquerda:
 
 | Tela | O que mostra |
 |------|--------------|
 | **Visão Geral** | Cartões de load, RAM, swap, temperatura, uptime + 4 gráficos (load, RAM, temp, discos) + rede + serviços |
 | **Discos** | Cartão por disco com % usado, espaço livre e **previsão de lotação (ETA)**; gráfico por disco; selo SMART |
-| **Rede** | Download/upload em Mbps, tráfego ao longo do tempo, I/O por disco (abas sda/sdb/sdc) |
+| **Rede** | Download/upload em Mbps, tráfego ao longo do tempo, I/O por disco (abas dinâmicas conforme `DISK_DEVS`) |
 | **Processos** | Top 7 por consumo de memória, com busca e ordenação por qualquer coluna |
 | **Alertas** | Ciclo de vida completo, filtros (ativos/todos/warning/critical), reconhecer e resolver |
+| **Anotações** | Linha do tempo de eventos marcados por você (ex.: "troquei o cooler"), com formulário rápido e remoção |
 | **Análise** | **Índice de saúde** com os descontos, pressão de RAM (6h), ETA de discos, resumo diário, **outages** e % de uptime (30 dias) |
 | **Histórico** | Tabela com todas as amostras do período — "rolar o passado" com valores exatos |
 | **Ajuda** | Guia rápido embutido no próprio painel |
@@ -163,6 +166,7 @@ O painel tem **8 telas**, navegáveis pela coluna da esquerda:
 **Interações em todas as telas:**
 
 - **Período**: botões `1h` / `6h` / `24h` / `72h` no topo.
+- **Tema**: botão no topo alterna entre **escuro e claro** (guarda a preferência).
 - **Zoom**: roda do mouse sobre o gráfico. **Pan**: `Shift` + arrastar.
 - **Detalhe**: clique num ponto do gráfico para abrir tudo daquela coleta.
 - **Anotações**: marque eventos na linha do tempo (ex.: "troquei o cooler") para
@@ -178,32 +182,52 @@ O painel tem **8 telas**, navegáveis pela coluna da esquerda:
    ```bash
    node --version   # deve mostrar v18.x ou superior
    ```
-2. **Acesso SSH ao servidor por chave** — o "crachá" que fala com o servidor sem senha.
-   ```bash
-   ssh seu-host 'echo ok'   # deve responder "ok" sem pedir senha
-   ```
+2. **Acesso SSH ao servidor por chave** — o instalador cria e configura isso para você.
 3. **Servidor ligado e na rede** — o painel coleta dele, afinal.
 
-> Não sabe configurar a chave SSH? Veja a seção [Solução de problemas](#solução-de-problemas)
-> ("Chave SSH"). O serviço `sshd` precisa estar ativo no servidor — nada além disso.
+> Não sabe configurar a chave SSH? Não precisa: o `./install.sh` faz tudo (gera a chave,
+> copia para o servidor, cria o alias). O serviço `sshd` precisa estar ativo no servidor —
+> nada além disso.
 
 ---
 
-## Instalação
+## Instalação (fácil)
 
 ```bash
 git clone https://github.com/seu-usuario/linux-server-dashboard.git
 cd linux-server-dashboard
-npm install
+./install.sh
 ```
 
-Se quiser personalizar (porta, intervalo, host), crie o arquivo de configuração:
+O `./install.sh` é um **assistente 1-comando** que:
 
-```bash
-cp .env.example .env
-```
+1. Confere o Node.js (18+) e instala as dependências;
+2. Cria o `.env` (se ainda não existir) com permissões restritas e **gera um `DASH_TOKEN`
+   automático** para proteger a API (você pode trocá-lo depois);
+3. **Testa a conexão SSH**;
+4. Se não estiver configurada, abre o **assistente SSH interativo** — aceita um **alias
+   já existente** no `~/.ssh/config` ou um `usuario@IP`/`IP` novo (com porta SSH opcional),
+   mostra o plano antes de aplicar e gera/copia a chave Ed25519
+   (`~/.ssh/dashboard_ed25519`) pedindo a **senha uma única vez**;
+5. Restringe permissões de `data/` e `.env` (segurança);
+6. Mostra o resumo com o token de acesso e um **menu de próximos passos** (iniciar em
+   segundo plano, instalar como serviço systemd, ver o tutorial ou sair).
 
-> O programa já funciona com valores padrão — o `.env` é opcional.
+> Entrada inválida não quebra a instalação: o assistente pede de novo (Ctrl+C cancela).
+> Toda entrada (usuário, host, alias, porta) é validada no shell antes de tocar no
+> `~/.ssh/config` e no `.env` — veja `install-lib.sh`.
+
+Opções do instalador:
+
+| Comando | O que faz |
+|---------|-----------|
+| `./install.sh` | Assistente completo (recomendado) |
+| `./install.sh --auto` | Não-interativo: dependências + `.env` + token (sem assistente SSH) |
+| `./install.sh --manual` | Só dependências + `.env` (você já tem SSH configurado) |
+| `./install.sh --configure` | Só o assistente SSH (trocar de servidor) |
+| `./install.sh --test` | Roda a suíte de testes e sai |
+| `./install.sh --install-service` | Cria o serviço systemd (roda sempre) |
+| `./install.sh --uninstall-service` | Remove o serviço systemd |
 
 **Teste rápido** (coleta única, sem abrir o navegador):
 
@@ -218,20 +242,26 @@ a comunicação está funcionando.
 
 ## Configuração
 
-As variáveis ficam no arquivo `.env` (copie de `.env.example` e preencha):
+As variáveis ficam no arquivo `.env` (o instalador já cria e preenche o `SSH_HOST`):
 
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
-| `SSH_HOST` | `seu-host` | Host/alias SSH do servidor (`seu-host` ou `user@ip`) |
-| `POLL_INTERVAL` | `60000` | Intervalo entre coletas em ms (60000 = 1 minuto) |
+| `SSH_HOST` | `seu-host` | Host/alias SSH do servidor (criado pelo instalador) |
+| `POLL_INTERVAL` | `60000` | Intervalo entre coletas em ms. **Mínimo 10000** (protege o servidor) |
 | `PORT` | `3000` | Porta do dashboard no seu computador |
 | `HISTORY_LIMIT` | `4320` | Amostras retidas (4320 = 3 dias a 1/min) |
-| `HISTORY_FILE` | `data/history.json` | Arquivo de persistência do histórico |
-| `LOG_FILE` | `data/dashboard.log` | Arquivo de log |
+| `HISTORY_FILE` | `data/history.json` | Arquivo de persistência (sempre dentro de `data/`) |
+| `LOG_FILE` | `data/dashboard.log` | Arquivo de log (sempre dentro de `data/`) |
 | `NET_IF` | *(vazio)* | Interface de rede a monitorar (vazio = seção Rede omitida) |
 | `DISK_MOUNTS` | `/` | Mount points monitorados, separados por espaço |
 | `DISK_DEVS` | *(vazio)* | Dispositivos de bloco p/ IO/SMART (vazio = omitido) |
 | `SERVICES` | *(vazio)* | Serviços systemd monitorados, separados por espaço |
+| `DASH_TOKEN` | *(gerado no install)* | **Token** de acesso à API/SSE (veja [Segurança](#segurança)); o instalador gera um automático se vazio |
+
+> **Segurança automática do `.env`:** valores que não são "palavras seguras"
+> (letras, números, `_ . : / -`) são **ignorados** pelo programa. Assim, nada escrito
+> no `.env` vira comando no servidor. Tokens que começam com `-` também são ignorados
+> — inclusive o `SSH_HOST`, que passa por sanitização própria antes do SSH.
 
 ---
 
@@ -240,16 +270,28 @@ As variáveis ficam no arquivo `.env` (copie de `.env.example` e preencha):
 ### Iniciar
 
 ```bash
-npm start
-# ou, se preferir o script amigável:
 ./start.sh
 ```
 
-Você verá algo como:
+Ou em segundo plano (libera o terminal):
+
+```bash
+./start.sh --background
 ```
-dashboard em http://127.0.0.1:3000 — host: seu-host, intervalo: 60000ms
+
+Confira se está rodando em segundo plano (e em qual porta):
+
+```bash
+./start.sh --status
 ```
-A primeira coleta acontece na hora; depois, uma a cada 60 s.
+
+Ou, se você instalou o serviço systemd (`./install.sh --install-service`), o painel
+já está rodando — para gerir:
+
+```bash
+systemctl --user status  linux-server-dashboard
+systemctl --user restart linux-server-dashboard
+```
 
 ### Abrir o painel
 
@@ -259,34 +301,49 @@ No navegador (Firefox, Chrome...), acesse:
 http://localhost:3000
 ```
 
-**Deixe o terminal aberto** — enquanto o `npm start` rodar, o painel funciona.
-Fechar a aba do navegador não para o serviço; fechar o terminal sim.
-
 > O painel só é acessível **neste computador** (`127.0.0.1`). Ninguém mais na rede
 > consegue abrir — isso é proposital.
-
-### Rodar em segundo plano
-
-```bash
-nohup npm start > data/nohup.log 2>&1 &
-```
 
 ### Verificar se está rodando
 
 ```bash
 curl http://127.0.0.1:3000/api/status
 ```
+
 Deve devolver um JSON com `"online":true`.
 
 ### Parar
 
 ```bash
 ./stop.sh        # forma fácil (encontra e encerra o processo)
-# ou Ctrl+C no terminal do npm start
+# ou Ctrl+C no terminal do ./start.sh
 ```
 
 > **Nada se perde ao parar.** O histórico fica salvo em `data/history.json` e os
 > gráficos continuam de onde pararam. Parar o painel **não afeta o servidor**.
+
+---
+
+## Rodar sempre em segundo plano (systemd)
+
+Para o painel iniciar sozinho no login (e ficar sempre de pé):
+
+```bash
+./install.sh --install-service
+```
+
+O serviço roda como **usuário** (sem `sudo`). Para ele continuar ativo mesmo sem
+login gráfico:
+
+```bash
+loginctl enable-linger $USER
+```
+
+Remover:
+
+```bash
+./install.sh --uninstall-service
+```
 
 ---
 
@@ -324,6 +381,11 @@ princípio é o mesmo: o monitoramento não pesa em quem é monitorado.
 | `/api/stream` | GET | SSE: `hello`, `sample`, `alerts`, `annotations`, `status` |
 | `/api/poll` | POST | Dispara coleta imediata ("coletar agora") |
 
+> Se `DASH_TOKEN` estiver definido no `.env` (o instalador gera um automático), toda a
+> API/SSE exige `Authorization: Bearer <token>` (ou `?token=` na URL do SSE). O navegador
+> pede o token uma vez e guarda na sessão. Mutações são protegidas por CSRF (cookie
+> `dash_csrf`) e limitadas por IP.
+
 ---
 
 ## Alertas
@@ -334,7 +396,7 @@ princípio é o mesmo: o monitoramento não pesa em quem é monitorado.
 | RAM usada ≥ 90% | ⚠️ warning | Conferir a tela **Processos**; encerrar o que pesa |
 | Temperatura CPU ≥ 60 °C | ⚠️ warning | Verificar ventilação, poeira nos coolers, posição do PC |
 | SMART diferente de `PASSED` | 🔴 critical | **Backup imediato** — pode ser falha física |
-| smbd/nmbd inativo | 🔴 critical | Reiniciar o serviço no servidor |
+| Serviço monitorado inativo | 🔴 critical | Reiniciar o serviço no servidor |
 | SSH falhou (servidor inacessível) | 🔴 critical | Servidor desligado/fora da rede; o painel tenta sozinho a cada minuto |
 
 **Regra de ouro:** warning = preste atenção, critical = aja.
@@ -346,24 +408,79 @@ resolve sozinho quando a condição deixa de existir, ou você resolve manualmen
 
 ## Segurança
 
-Este projeto foi desenhado com segurança em mente. Os principais pontos:
+Este projeto foi desenhado com **segurança by design**. Os principais pontos:
 
+**No servidor monitorado**
 - **Sem senhas.** A autenticação é por **chave SSH** (Ed25519). O `.env` não guarda
   senha nenhuma, e o `.env.example` só traz placeholders.
 - **Somente leitura.** O servidor executa apenas comandos de leitura (`cat`, `df`,
   `free`, `ps`, `smartctl`...). Nada é instalado, alterado ou executado de forma
   persistente no servidor.
 - **1 comando por minuto.** Contato mínimo, previsível e barato.
-- **Dashboard local.** Bind em `127.0.0.1` — o painel não fica exposto na rede.
 - **Sem agentes.** Não há daemon, serviço ou script rodando no servidor — não há
   superfície de ataque nova por lá.
+- **Anti-injeção de config.** Os valores de `NET_IF`, `DISK_MOUNTS`, `DISK_DEVS` e
+  `SERVICES` são filtrados por uma **whitelist** de caracteres seguros antes de entrar
+  no comando SSH. Nada vindo do `.env` consegue virar comando no servidor.
+- **Host saneado.** O `SSH_HOST` passa por sanitização própria que rejeita valores que
+  começam com `-` (tentativa de injetar opções do `ssh`), com fallback para o alias
+  padrão.
+
+**No seu computador**
+- **Dashboard local.** Bind em `127.0.0.1` — o painel não fica exposto na rede.
+- **Validação de `Host`.** O servidor rejeita (HTTP 403) qualquer requisição cujo
+  cabeçalho `Host` não seja `localhost`/`127.0.0.1`/`[::1]`. Isso **bloqueia DNS
+  rebinding** (truque em que um site malicioso "pega emprestado" o endereço local).
+- **Proteção CSRF em duas camadas.** (1) Requisições que mudam estado com origem
+  cruzada são rejeitadas por `Origin`/`Sec-Fetch-Site`; (2) o servidor emite um cookie
+  `dash_csrf` (SameSite=Lax, HttpOnly) e exige que mutações com `Origin` presente
+  carreguem esse cookie — bloqueando formulários e pedidos forjados que não têm o cookie.
+- **Comparação de token sem vazamento de tempo.** O `DASH_TOKEN` é comparado com
+  `crypto.timingSafeEqual` (resistente a ataques de timing).
+- **Rate limit.** Mutações na API (`POST`/`DELETE`) são limitadas por IP (120/min) —
+  dificulta força bruta e abuso.
+- **Erros sem vazamento.** O servidor devolve erros em JSON **sem stack trace**
+  (nenhum detalhe interno chega ao navegador).
+- **Cabeçalhos de segurança.** CSP restritivo (`frame-ancestors 'none'`),
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: no-referrer`, `X-DNS-Prefetch-Control: off`,
+  `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`
+  e `Permissions-Policy` restritiva em todas as respostas.
+- **Escape de HTML (anti-XSS).** Todo dado exibido no painel (alertas, montagens de
+  disco, nomes de serviço, comandos de processo, SMART...) passa por escape antes de
+  virar HTML.
+- **Export seguro.** O CSV previne **formula injection** (Excel) e o nome do arquivo
+  é saneado.
+- **Permissões restritas.** `data/` é `700` e os arquivos de dados/`.env` são `600`.
 - **Segredos fora do git.** `.env` e `data/` estão no `.gitignore`; o repositório
   público contém apenas código e modelos sem valores.
 - **SSH não-interativo.** `BatchMode=yes` + `ConnectTimeout=10` — falha rápido se o
-  servidor estiver fora, sem travar nem pedir interação.
+  servidor estiver fora, sem travar nem pedir interação. O instalador grava o alias
+  com `StrictHostKeyChecking accept-new` (verificação de host key segura).
+- **Token por padrão (`DASH_TOKEN`).** O instalador gera um token automático — a API/SSE
+  passa a exigir `Authorization: Bearer <token>` (ou `?token=`), e o navegador pede o
+  token uma única vez, guardando na sessão.
 
 > Se você fosse auditar: o único contato com o servidor é o comando SSH construído em
-> `server/poller.js` (`buildCommand()`). É só leitura, é só 1 por minuto, e é isso.
+> `server/poller.js` (`buildCommand()`), com valores já filtrados por
+> `server/config.js` (`sanitizeToken()`). É só leitura, é só 1 por minuto, e é isso.
+
+---
+
+## Testes
+
+O projeto tem uma suíte de testes (sem dependências novas, usa o runner nativo do Node):
+
+```bash
+npm test
+```
+
+Cobre: parse do poller, limiares de alertas, downsample do histórico, ciclo de vida
+de alertas (incluindo dedupe do alerta offline), sanitização de configuração (incluindo
+anti-injeção de `NET_IF` e do host SSH), validação de `Host`/CSRF/token (com cookie
+`dash_csrf` e comparação a prova de timing), rate limit, error handler sem stack trace,
+escrita atômica assíncrona do histórico, guards de renderização do frontend,
+renderização de anotações e o toggle de tema claro/escuro.
 
 ---
 
@@ -374,25 +491,34 @@ linux-server-dashboard/
 ├── AGENTS.md               ← regras e arquitetura do projeto
 ├── TUTORIAL.md             ← tutorial passo a passo para leigos
 ├── README.md               ← este arquivo
-├── start.sh                ← inicia o serviço (cria .env/deps se faltarem)
-├── stop.sh                 ← para o serviço com segurança
+├── SECURITY.md             ← política e threat model de segurança
+├── LICENSE                 ← MIT
+├── install.sh              ← assistente 1-comando (deps, .env+token, SSH, systemd, menus)
+├── install-lib.sh          ← validação pura das entradas do instalador (segurança)
+├── start.sh                ← inicia o serviço (primeiro plano, --background ou --status)
+├── stop.sh                 ← para o serviço com segurança (PID file)
 ├── package.json            (deps: express + chart.js + zoom/annotation plugins)
 ├── .env.example            (modelo de configuração, sem valores reais)
 ├── .gitignore              (exclui .env, data/, node_modules/)
 ├── data/                   (runtime: history.json, alerts.json, annotations.json, log)
 ├── server/
 │   ├── index.js            (Express, SSE, API, loop de poll, export CSV)
+│   ├── config.js           (parser único do .env, validações, sanitização)
+│   ├── security.js         (Host check, CSRF c/ cookie, headers, token timing-safe, rate limit)
+│   ├── csv.js              (export CSV com escape anti-fórmula)
 │   ├── poller.js           (comando SSH, parse, taxas de rede/I/O, alertas)
-│   ├── history.js          (buffer em memória + persistência JSON atômica + range/downsample)
+│   ├── history.js          (buffer em memória + persistência JSON atômica assíncrona)
 │   └── stores.js           (JsonStore genérico: AlertsStore, AnnotationsStore)
+├── test/                   (suíte de testes — node --test)
+├── test-support/           (helpers de teste: VM p/ frontend, request HTTP)
 └── public/
-    ├── index.html          (dashboard PT-BR, dark theme, sidebar multi-view)
+    ├── index.html          (dashboard PT-BR, temas claro/escuro, sidebar multi-view)
     ├── style.css
     └── js/
-        ├── main.js         (orquestração: SSE, refresh, ações, modais)
+        ├── main.js         (orquestração: SSE, refresh, ações, modais, token, tema)
         ├── router.js       (navegação por hash entre as views)
         ├── charts.js       (Chart.js + zoom/pan + anotações no timeline)
-        ├── sections.js     (renderização das views, tabelas sortáveis/filtráveis)
+        ├── sections.js     (renderização das views, escape HTML, abas I/O dinâmicas)
         └── analysis.js     (health score, ETA de disco, pressão de RAM, outages)
 ```
 
@@ -401,26 +527,28 @@ linux-server-dashboard/
 ## Solução de problemas
 
 ### O painel não abre no navegador
-- O serviço está rodando? (o terminal está com `npm start` ativo?)
+- O serviço está rodando? (o terminal está com `./start.sh` ativo?)
 - Mudou a porta? Use a nova porta na URL (`PORT` no `.env`).
 - Teste: `curl http://127.0.0.1:3000/api/status`
+- "Host não permitido (403)"? Abra por `http://localhost:3000` ou `http://127.0.0.1:3000`
+  — outros endereços são bloqueados de propósito.
 
 ### "Servidor inacessível" (dot vermelho)
 1. `ping -c 3 seu-host`
 2. `ssh seu-host 'uptime'`
 3. Se voltou, o painel se recupera sozinho no próximo minuto (ou clique em **Coletar agora**).
 
+### "Chave do servidor não autorizada" no primeiro uso
+- O `install.sh` resolve: ele aceita a chave do servidor na primeira conexão.
+- Manualmente: `ssh seu-host 'echo ok'` e confirme com `yes` na pergunta de host key.
+
 ### Chave SSH pedindo senha
 - A chave não está sendo usada. Confira `ls -la ~/.ssh/` e o seu `~/.ssh/config`.
 - "Permission denied" = a chave pública não está autorizada no servidor. Reautorize:
   ```bash
-  ssh-copy-id seu-host
+  ssh-copy-id -i ~/.ssh/dashboard_ed25519.pub seu-host
   ```
-
-### Gráficos vazios
-- Histórico vazio? `ls -la data/history.json` (tamanho > 0).
-- Período maior que o histórico disponível? Selecione `1h`.
-- Na primeira execução, aguarde 1-2 minutos para acumular amostras.
+  ou rode `./install.sh --configure`.
 
 ### Porta 3000 já em uso
 ```bash
@@ -430,7 +558,8 @@ lsof -i :3000                 # descobrir quem está usando
 
 ### Ver os logs
 ```bash
-tail -f data/dashboard.log
+tail -f data/dashboard.log    # primeiro plano / systemd
+tail -f data/nohup.log        # modo --background
 ```
 
 ---
@@ -444,8 +573,8 @@ com métricas do sistema — nenhum arquivo é modificado.
 irrelevante, até num servidor de 1 núcleo. Todo o trabalho pesado (parse, gráficos,
 histórico) roda na sua máquina.
 
-**Preciso de senha?** Não. O acesso é por chave SSH. Se o seu servidor só aceita
-senha, configure a chave antes (`ssh-copy-id`).
+**Preciso de senha?** Não. O acesso é por chave SSH. O `./install.sh` cria e copia a
+chave para você (ele pede a senha do servidor uma única vez, só para copiar a chave).
 
 **Funciona em qualquer servidor Linux?** Sim, desde que tenha `sshd` ativo e os
 comandos padrão (`df`, `free`, `ps`, `systemctl`, `smartctl`*). O comando de coleta é
@@ -465,7 +594,7 @@ deliberado — rode localmente e, se quiser acesso remoto, use uma VPN/túnel SS
 
 ## Licença
 
-**MIT** — use, modifique e compartilhe livremente, com atribuição.
+**MIT** — use, modifique e compartilhe livremente, com atribuição (veja `LICENSE`).
 
 ---
 

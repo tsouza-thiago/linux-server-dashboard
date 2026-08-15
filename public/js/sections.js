@@ -43,6 +43,11 @@ Dash.fmt = {
     const s = Math.floor(sec % 60);
     return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
   },
+  esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  },
 };
 
 function setBar(el, pct, color) {
@@ -69,7 +74,7 @@ Dash.sections = {
       el.innerHTML = parts.length
         ? parts.map((p) => `
         <div class="health-part">
-          <span>${p.label}</span>
+          <span>${Dash.fmt.esc(p.label)}</span>
           <span class="pts pts-${p.level}">-${p.pts}</span>
         </div>`).join('')
         : '<div class="stat-row"><span class="k">nenhum problema detectado</span><span class="v pts-ok">✓</span></div>';
@@ -82,7 +87,7 @@ Dash.sections = {
     for (const a of active || []) {
       const div = document.createElement('div');
       div.className = `alert alert-${a.level}`;
-      div.innerHTML = `<span>${a.message}</span><button class="alert-ack" title="Reconhecer" data-ack="${a.id}">✓</button>`;
+      div.innerHTML = `<span>${Dash.fmt.esc(a.message)}</span><button class="alert-ack" title="Reconhecer" data-ack="${a.id}">✓</button>`;
       el.appendChild(div);
     }
     el.querySelectorAll('[data-ack]').forEach((btn) => {
@@ -99,12 +104,14 @@ Dash.sections = {
     $('coresValue').textContent = `${latest.cores ?? '—'} núcleo${(latest.cores || 1) > 1 ? 's' : ''}`;
     $('kernelLabel').textContent = latest.os && latest.os.kernel ? `kernel ${latest.os.kernel}` : '—';
 
-    $('load1').textContent = latest.load[0].toFixed(2);
-    $('load5').textContent = latest.load[1].toFixed(2);
-    $('load15').textContent = latest.load[2].toFixed(2);
-    const loadPct = Math.min(latest.load[0] * (100 / (latest.cores || 1)), 100);
+    const load = latest.load || [];
+    $('load1').textContent = load.length ? load[0].toFixed(2) : '—';
+    $('load5').textContent = load.length > 1 ? load[1].toFixed(2) : '—';
+    $('load15').textContent = load.length > 2 ? load[2].toFixed(2) : '—';
+    const load1 = load.length ? load[0] : 0;
+    const loadPct = Math.min(load1 * (100 / (latest.cores || 1)), 100);
     setBar($('loadBar'), loadPct, loadPct > 90 ? '#e5484d' : '#3b82f6');
-    $('loadNote').textContent = `núcleos: ${latest.cores || 1} · ${latest.load[0] >= (latest.cores || 1) ? 'sobrecarga' : 'ok'}`;
+    $('loadNote').textContent = `núcleos: ${latest.cores || 1} · ${load1 >= (latest.cores || 1) ? 'sobrecarga' : 'ok'}`;
 
     const r = latest.ram;
     if (r) {
@@ -143,10 +150,10 @@ Dash.sections = {
       row.className = 'overview-disk';
       row.title = 'ver detalhes';
       row.innerHTML = `
-        <span class="mount">${d.mount}</span>
+        <span class="mount">${Dash.fmt.esc(d.mount)}</span>
         <div class="bar"><div class="bar-fill" style="width:${d.pct}%;background:${Dash.fmt.pctColor(d.pct)}"></div></div>
         <span class="pct">${d.pct}%</span>
-        <span class="smart"><span class="badge ${smartOk ? 'badge-ok' : 'badge-bad'}">${smart.status || '—'}</span></span>`;
+        <span class="smart"><span class="badge ${smartOk ? 'badge-ok' : 'badge-bad'}">${Dash.fmt.esc(smart.status || '—')}</span></span>`;
       row.addEventListener('click', () => {
         Dash.diskDetailMount = d.mount;
         location.hash = '#/discos';
@@ -190,10 +197,10 @@ Dash.sections = {
       const card = document.createElement('div');
       card.className = `disk-card ${Dash.diskDetailMount === d.mount ? 'selected' : ''}`;
       card.innerHTML = `
-        <h3><span>${d.mount}</span><span class="badge ${smartOk ? 'badge-ok' : 'badge-bad'}">${smart.status || 'SMART —'}</span></h3>
+        <h3><span>${Dash.fmt.esc(d.mount)}</span><span class="badge ${smartOk ? 'badge-ok' : 'badge-bad'}">${Dash.fmt.esc(smart.status || 'SMART —')}</span></h3>
         <div class="big">${d.pct}%</div>
         <div class="bar"><div class="bar-fill" style="width:${d.pct}%;background:${Dash.fmt.pctColor(d.pct)}"></div></div>
-        <div class="meta">${d.used} de ${d.size} · livre ${d.avail}</div>
+        <div class="meta">${Dash.fmt.esc(d.used)} de ${Dash.fmt.esc(d.size)} · livre ${Dash.fmt.esc(d.avail)}</div>
         ${eta ? `<div class="eta">${eta.daysToFull !== null ? `⚠ Previsão de lotação: <b>${Dash.fmt.days(eta.daysToFull)}</b>` : 'Crescimento estável — sem previsão de lotação'} (${eta.growthPerDayGB >= 0.001 ? `+${eta.growthPerDayGB.toFixed(1)} GB/dia` : '±0 GB/dia'})</div>` : ''}`;
       card.addEventListener('click', () => {
         Dash.diskDetailMount = d.mount;
@@ -234,7 +241,7 @@ Dash.sections = {
     }
     for (const p of list) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${p.pid}</td><td>${p.user}</td><td>${p.cpu.toFixed(1)}</td><td>${p.mem.toFixed(1)}</td><td class="mono">${p.cmd}</td>`;
+      tr.innerHTML = `<td>${p.pid}</td><td>${Dash.fmt.esc(p.user)}</td><td>${p.cpu.toFixed(1)}</td><td>${p.mem.toFixed(1)}</td><td class="mono">${Dash.fmt.esc(p.cmd)}</td>`;
       tbody.appendChild(tr);
     }
     const heads = $('procsTable').querySelectorAll('th');
@@ -257,7 +264,7 @@ Dash.sections = {
       div.className = `alert-item ${a.status === 'resolved' ? 'resolved' : ''}`;
       div.innerHTML = `
         <span class="badge ${a.level === 'critical' ? 'badge-bad' : 'badge-warn'}">${a.level}</span>
-        <span class="alert-msg"><b>${a.message}</b><br><span class="alert-time">${Dash.fmt.timeDate(a.ts)} · ${a.status}${a.resolvedAt ? ` · resolvido em ${Dash.fmt.timeDate(a.resolvedAt)}` : ''}</span></span>
+        <span class="alert-msg"><b>${Dash.fmt.esc(a.message)}</b><br><span class="alert-time">${Dash.fmt.timeDate(a.ts)} · ${a.status}${a.resolvedAt ? ` · resolvido em ${Dash.fmt.timeDate(a.resolvedAt)}` : ''}</span></span>
         <span class="alert-actions">
           ${a.status === 'new' ? `<button class="btn-ghost" data-action="ack" data-id="${a.id}">Reconhecer</button>` : ''}
           ${a.status !== 'resolved' ? `<button class="btn-ghost" data-action="resolve" data-id="${a.id}">Resolver</button>` : ''}
@@ -269,6 +276,28 @@ Dash.sections = {
         const fn = btn.dataset.action === 'ack' ? Dash.api.ackAlert : Dash.api.resolveAlert;
         fn(btn.dataset.id);
       });
+    });
+  },
+
+  annotationsView() {
+    const list = Dash.annotations || [];
+    const el = $('annotationsList');
+    el.innerHTML = '';
+    if (!list.length) {
+      el.innerHTML = '<div class="empty">Nenhuma anotação ainda — clique em um ponto de um gráfico e escolha <b>Anotar neste momento</b>, ou use o formulário acima.</div>';
+      return;
+    }
+    for (const a of list) {
+      const div = document.createElement('div');
+      div.className = 'annotation-item';
+      div.innerHTML = `
+        <span class="annotation-time">${Dash.fmt.timeDate(a.ts)}</span>
+        <span class="annotation-text">${Dash.fmt.esc(a.label || a.text)}</span>
+        <button class="btn-ghost" data-del="${a.id}" title="Remover anotação" aria-label="Remover anotação">Remover</button>`;
+      el.appendChild(div);
+    }
+    el.querySelectorAll('[data-del]').forEach((btn) => {
+      btn.addEventListener('click', () => Dash.api.deleteAnnotation(btn.dataset.del));
     });
   },
 
@@ -294,7 +323,7 @@ Dash.sections = {
     const et = $('etaTable').querySelector('tbody');
     et.innerHTML = etas.length ? etas.map((e) => `
       <tr>
-        <td><b>${e.mount}</b></td>
+        <td><b>${Dash.fmt.esc(e.mount)}</b></td>
         <td>${e.usedGB.toFixed(1)} GB de ${e.sizeGB.toFixed(1)} GB (${e.pct}%)</td>
         <td>${e.growthPerDayGB >= 0.001 ? `+${e.growthPerDayGB.toFixed(1)} GB/dia` : 'estável'}</td>
         <td>${e.daysToFull !== null ? `<span class="badge ${e.daysToFull < 90 ? 'badge-warn' : 'badge-neutral'}">${Dash.fmt.days(e.daysToFull)}</span>` : '<span class="badge badge-ok">não estimável</span>'}</td>
@@ -329,7 +358,7 @@ Dash.sections = {
     $('historyHint').textContent = `${samples.length} amostras exibidas${samples.length === 400 ? ' (máx)' : ''} · período ${Dash.period}`;
     const tbody = $('historyTable').querySelector('tbody');
     tbody.innerHTML = samples.map((s) => {
-      const disks = (s.disks || []).map((d) => `${d.mount} ${d.pct}%`).join(' · ');
+      const disks = (s.disks || []).map((d) => `${Dash.fmt.esc(d.mount)} ${d.pct}%`).join(' · ');
       const ramPct = s.ram && s.ram.total ? ((s.ram.used / s.ram.total) * 100).toFixed(0) : '—';
       return `<tr>
         <td>${Dash.fmt.timeDate(s.ts)}</td>
@@ -346,7 +375,10 @@ Dash.sections = {
   ioDevTabs() {
     const el = $('ioTabs');
     el.innerHTML = '';
-    for (const dev of ['sda', 'sdb', 'sdc']) {
+    const devs = [...new Set((Dash.latest && (Dash.latest.io || []).map((x) => x.dev)) || [])];
+    if (!devs.length) return;
+    if (!devs.includes(Dash.ioDev)) Dash.ioDev = devs[0];
+    for (const dev of devs) {
       const b = document.createElement('button');
       b.textContent = dev;
       b.className = Dash.ioDev === dev ? 'active' : '';
@@ -361,28 +393,29 @@ Dash.sections = {
 
   modal: {
     open(sample) {
+      const E = Dash.fmt.esc.bind(Dash.fmt);
       const disks = (sample.disks || []).map((d) => `
-        <div class="k">${d.mount}</div>
-        <div class="v">${d.used} de ${d.size} · ${d.pct}% <span class="bar" style="display:inline-block;width:60px;vertical-align:middle"><span class="bar-fill" style="width:${d.pct}%;background:${Dash.fmt.pctColor(d.pct)};display:block"></span></span></div>`).join('');
+        <div class="k">${E(d.mount)}</div>
+        <div class="v">${E(d.used)} de ${E(d.size)} · ${d.pct}% <span class="bar" style="display:inline-block;width:60px;vertical-align:middle"><span class="bar-fill" style="width:${d.pct}%;background:${Dash.fmt.pctColor(d.pct)};display:block"></span></span></div>`).join('');
       const procs = (sample.topProcs || []).slice(0, 3).map((p) => `
-        <div class="k">PID ${p.pid} · ${p.user}</div>
-        <div class="v">${p.cpu.toFixed(1)}% CPU · ${p.mem.toFixed(1)}% MEM · ${p.cmd}</div>`).join('');
-      const smart = (sample.smart || []).map((s) => `<span class="badge ${s.status === 'PASSED' ? 'badge-ok' : 'badge-bad'}">${s.dev}: ${s.status}</span>`).join(' ');
-      const services = Object.entries(sample.services || {}).map(([s, st]) => `<span class="badge ${st === 'active' ? 'badge-ok' : 'badge-bad'}">${s}: ${st}</span>`).join(' ');
+        <div class="k">PID ${p.pid} · ${E(p.user)}</div>
+        <div class="v">${p.cpu.toFixed(1)}% CPU · ${p.mem.toFixed(1)}% MEM · ${E(p.cmd)}</div>`).join('');
+      const smart = (sample.smart || []).map((s) => `<span class="badge ${s.status === 'PASSED' ? 'badge-ok' : 'badge-bad'}">${E(s.dev)}: ${E(s.status)}</span>`).join(' ');
+      const services = Object.entries(sample.services || {}).map(([s, st]) => `<span class="badge ${st === 'active' ? 'badge-ok' : 'badge-bad'}">${E(s)}: ${E(st)}</span>`).join(' ');
       $('modalTitle').textContent = `Amostra — ${Dash.fmt.timeDate(sample.ts)}`;
       $('sampleModalBody').innerHTML = `
         <div class="sample-grid">
-          <div class="k">Host</div><div class="v">${sample.host || '—'}</div>
-          <div class="k">Kernel / OS</div><div class="v">${sample.os?.kernel || '—'} · ${sample.os?.name || '—'}</div>
+          <div class="k">Host</div><div class="v">${E(sample.host) || '—'}</div>
+          <div class="k">Kernel / OS</div><div class="v">${E(sample.os?.kernel)} · ${E(sample.os?.name)}</div>
           <div class="k">Uptime</div><div class="v">${Dash.fmt.uptime(sample.uptimeSec || 0)} (boot ${Dash.fmt.timeDate(sample.bootAt)})</div>
-          <div class="k">Load 1/5/15</div><div class="v">${sample.load.map((l) => l.toFixed(2)).join(' / ')}</div>
+          <div class="k">Load 1/5/15</div><div class="v">${(sample.load || []).map((l) => l.toFixed(2)).join(' / ') || '—'}</div>
           <div class="k">RAM</div><div class="v">${sample.ram ? `${sample.ram.used} / ${sample.ram.total} MB usada · ${sample.ram.avail} MB livre` : '—'}</div>
           <div class="k">Swap</div><div class="v">${sample.ram ? `${sample.ram.swapUsed} / ${sample.ram.swapTotal} MB` : '—'}</div>
           <div class="k">Temperatura</div><div class="v">${sample.tempC !== null && sample.tempC !== undefined ? sample.tempC.toFixed(1) + '°C' : '—'}</div>
           <div class="k">Rede</div><div class="v">↓ ${(sample.net?.rxMbps || 0).toFixed(2)} Mbps · ↑ ${(sample.net?.txMbps || 0).toFixed(2)} Mbps (${Dash.fmt.bytes(sample.net?.rxBytes)} / ${Dash.fmt.bytes(sample.net?.txBytes)})</div>
           ${disks}
           <div class="k full">I/O</div>
-          <div class="v full">${(sample.io || []).map((io) => `${io.dev}: ${(io.readMBps || 0).toFixed(2)} MB/s l · ${(io.writeMBps || 0).toFixed(2)} MB/s e`).join(' &nbsp;·&nbsp; ') || '—'}</div>
+          <div class="v full">${(sample.io || []).map((io) => `${E(io.dev)}: ${(io.readMBps || 0).toFixed(2)} MB/s l · ${(io.writeMBps || 0).toFixed(2)} MB/s e`).join(' &nbsp;·&nbsp; ') || '—'}</div>
           <div class="k full">SMART</div><div class="v full">${smart || '—'}</div>
           <div class="k full">Serviços</div><div class="v full">${services || '—'}</div>
           <div class="k full">Top processos</div><div class="v full">${procs || '—'}</div>
