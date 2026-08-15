@@ -7,6 +7,10 @@ Uma vez por minuto, este painel conecta no servidor por SSH (somente leitura), c
 dezenas de métricas e as mostra em gráficos interativos. Feito para funcionar até em
 hardware muito limitado (1 núcleo, pouca RAM) — por exemplo, uma máquina velha em casa.
 
+> **Novo por aqui?** Comece pelo [**Tutorial passo a passo**](TUTORIAL.md) — um guia
+> do zero, escrito para quem nunca usou a ferramenta: instalar, iniciar, parar e
+> entender os números do painel, com comandos prontos para copiar e colar.
+
 ```
   ┌─────────────────────────────────────────────────────┐
   │        Linux Server Dashboard                       │
@@ -32,6 +36,8 @@ hardware muito limitado (1 núcleo, pouca RAM) — por exemplo, uma máquina vel
 ---
 
 ## Índice
+
+**Guia rápido:** [Tutorial passo a passo](TUTORIAL.md) — para quem nunca usou a ferramenta.
 
 1. [O que é? (para leigos)](#o-que-é-para-leigos)
 2. [O que ele monitora](#o-que-ele-monitora)
@@ -193,6 +199,9 @@ O painel tem **9 telas**, navegáveis pela coluna da esquerda:
 
 ## Instalação (fácil)
 
+> Quer um passo a passo com calma? O [Tutorial passo a passo](TUTORIAL.md)
+> cobre pré-requisitos, instalação e como iniciar, do zero.
+
 ```bash
 git clone https://github.com/seu-usuario/linux-server-dashboard.git
 cd linux-server-dashboard
@@ -303,6 +312,9 @@ http://localhost:3000
 
 > O painel só é acessível **neste computador** (`127.0.0.1`). Ninguém mais na rede
 > consegue abrir — isso é proposital.
+
+> Entender cada tela e cada número? O [Tutorial passo a passo](TUTORIAL.md)
+> tem um glossário para leigos e a seção "Como usar o dashboard".
 
 ### Verificar se está rodando
 
